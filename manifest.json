@@ -1,16 +1,21 @@
 {
-    "name": "Geo Notes",
-    "short_name": "GeoNotes",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#4a90e2",
-    "icons": [
-        {
-            "src": "icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any maskable"
-        }
-    ]
+  "name": "Geo Notes",
+  "short_name": "GeoNotes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a90e2",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"  // Важно для поддержки Android
+    },
+    {
+      "src": "/icon-512.png",    // Добавьте иконку 512x512
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
