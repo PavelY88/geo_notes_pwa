@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geo-notes-v2';
+const CACHE_NAME = 'geo_notes_v2';
 const ASSETS = [
   '/geo_notes_pwa/',
   '/geo_notes_pwa/index.html',
