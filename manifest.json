@@ -1,7 +1,7 @@
 {
   "name": "Geo Notes",
   "short_name": "GeoNotes",
-  "description": "Приложение для заметок с привязкой к карте",
+  "description": "Заметки с геолокацией",
   "start_url": "/geo_notes_pwa/",
   "scope": "/geo_notes_pwa/",
   "display": "standalone",
@@ -21,7 +21,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false
+  ]
 }
