@@ -10,10 +10,10 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"  // Важно для поддержки Android
+      "purpose": "maskable any"
     },
     {
-      "src": "/icon-512.png",    // Добавьте иконку 512x512
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
