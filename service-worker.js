@@ -1,19 +1,8 @@
-const CACHE_NAME = 'geo-notes-v1';
+const CACHE_NAME = 'geo-notes-v2';
 const ASSETS = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/icon-192.png'
+  '/geo_notes_pwa/',
+  '/geo_notes_pwa/index.html',
+  '/geo_notes_pwa/manifest.json',
+  '/geo_notes_pwa/icon-192.png',
+  '/geo_notes_pwa/icon-512.png'
 ];
-
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(ASSETS))
-});
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-            .then(response => response || fetch(event.request))
-});
