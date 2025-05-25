@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,23 +7,84 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
     <style>
-        body { margin: 0; padding: 0; }
-        #container { 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             height: 100vh;
         }
-        #map { height: 100%; }
-        #notes-list { padding: 20px; overflow-y: auto; }
-        .note-card { 
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
+
+        #map {
+            height: 100%;
+            z-index: 1;
         }
+
+        #notes-list {
+            padding: 20px;
+            overflow-y: auto;
+            background: #f5f5f5;
+        }
+
+        .note-card {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .note-card button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        #installBtn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+
+        #installBtn:hover {
+            transform: translateY(-2px);
+        }
+
         @media (max-width: 768px) {
-            #container { grid-template-columns: 1fr; }
-            #map { height: 50vh; }
+            #container {
+                grid-template-columns: 1fr;
+            }
+            #map {
+                height: 60vh;
+            }
+            #installBtn {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
@@ -32,6 +93,9 @@
         <div id="map"></div>
         <div id="notes-list"></div>
     </div>
+
+    <!-- Кнопка установки PWA -->
+    <button id="installBtn">Установить приложение</button>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
@@ -64,7 +128,7 @@
                     <div class="note-card">
                         <p>${note.text}</p>
                         <small>${new Date(note.date).toLocaleString()}</small>
-                        <button onclick="notesManager.deleteNote('${note.id}')">Delete</button>
+                        <button onclick="notesManager.deleteNote('${note.id}')">Удалить</button>
                     </div>
                 `).join('');
                 
@@ -89,7 +153,7 @@
             }
 
             createNotePrompt(latlng) {
-                const text = prompt('Enter your note:');
+                const text = prompt('Введите текст заметки:');
                 if (text) {
                     this.saveNote({
                         id: Date.now().toString(),
@@ -106,18 +170,46 @@
             }
         }
 
-        // Initialize app
+        // Инициализация приложения
         let notesManager;
         document.addEventListener('DOMContentLoaded', () => {
             notesManager = new NotesManager();
         });
 
-        // Service Worker Registration
+        // Логика установки PWA
+        let deferredPrompt;
+        const installButton = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.style.display = 'block';
+        });
+
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                installButton.style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+
+        // Регистрация Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log('Service Worker registered'))
-                .catch(console.error);
+                .then(() => console.log('Service Worker зарегистрирован'))
+                .catch(err => console.log('Ошибка регистрации:', err));
         }
+
+        // Проверка установленного статуса
+        window.addEventListener('appinstalled', () => {
+            console.log('Приложение успешно установлено');
+            installButton.style.display = 'none';
+        });
     </script>
 </body>
 </html>
