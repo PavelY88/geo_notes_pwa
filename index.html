@@ -5,14 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#4a90e2">
     <title>Geo Notes PWA</title>
-    
-    <!-- Исправленные пути -->
     <link rel="manifest" href="/geo_notes_pwa/manifest.json">
     <link rel="apple-touch-icon" href="/geo_notes_pwa/icon-192.png">
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
     <style>
-        /* ... ваш существующий CSS ... */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        #map {
+            height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        #notes-list {
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .note-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        #installBtn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60vh 1fr;
+            }
+            #installBtn {
+                bottom: 15px;
+                right: 15px;
+                padding: 10px 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -21,34 +82,117 @@
         <div id="notes-list"></div>
     </div>
 
-    <button id="installBtn">Установить приложение</button>
+    <button id="installBtn" aria-label="Установить приложение">📲 Установить</button>
 
-    <!-- Исправленный путь к Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    
     <script>
-        // Исправленные пути в Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/geo_notes_pwa/service-worker.js')
-                .then(() => console.log('Service Worker зарегистрирован'))
-                .catch(err => console.log('Ошибка:', err));
-        }
+        // Инициализация карты
+        const map = L.map('map').setView([55.751244, 37.618423], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
+        // Логика заметок
         class NotesManager {
-            // ... остальная логика без изменений ...
+            constructor() {
+                this.notes = JSON.parse(localStorage.getItem('geoNotes') || [];
+                this.markers = new Map();
+                this.renderNotes();
+                map.on('click', (e) => this.addNote(e.latlng));
+                map.on('moveend', () => this.filterNotes());
+            }
+
+            addNote(latlng) {
+                const text = prompt('Введите текст заметки:');
+                if (text) {
+                    const note = {
+                        id: Date.now(),
+                        text,
+                        lat: latlng.lat,
+                        lng: latlng.lng,
+                        date: new Date().toISOString()
+                    };
+                    this.notes.push(note);
+                    this.save();
+                    this.createMarker(note);
+                }
+            }
+
+            createMarker(note) {
+                const marker = L.marker([note.lat, note.lng])
+                    .bindPopup(note.text)
+                    .addTo(map);
+                this.markers.set(note.id, marker);
+            }
+
+            filterNotes() {
+                const bounds = map.getBounds();
+                const visibleNotes = this.notes.filter(note => 
+                    bounds.contains([note.lat, note.lng])
+                this.renderNotes(visibleNotes);
+            }
+
+            renderNotes(notes = this.notes) {
+                const list = document.getElementById('notes-list');
+                list.innerHTML = notes.map(note => `
+                    <div class="note-card">
+                        <p>${note.text}</p>
+                        <small>${new Date(note.date).toLocaleString()}</small>
+                        <button onclick="notesManager.deleteNote(${note.id})">Удалить</button>
+                    </div>
+                `).join('');
+            }
+
+            deleteNote(id) {
+                this.notes = this.notes.filter(note => note.id !== id);
+                this.markers.get(id)?.remove();
+                this.markers.delete(id);
+                this.save();
+                this.renderNotes();
+            }
+
+            save() {
+                localStorage.setItem('geoNotes', JSON.stringify(this.notes));
+            }
         }
 
-        // Логика установки PWA
+        // Инициализация менеджера заметок
+        const notesManager = new NotesManager();
+
+        // Логика PWA
         let deferredPrompt;
         const installButton = document.getElementById('installBtn');
-        
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             installButton.style.display = 'block';
         });
 
-        // ... остальной JavaScript код ...
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                installButton.style.display = 'none';
+                console.log('Приложение установлено');
+            }
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA установлено');
+            installButton.style.display = 'none';
+        });
+
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/geo_notes_pwa/service-worker.js')
+                .then(reg => console.log('SW registered:', reg))
+                .catch(err => console.log('SW registration failed:', err));
+        }
     </script>
 </body>
 </html>
