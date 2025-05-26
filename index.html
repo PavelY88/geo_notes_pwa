@@ -20,6 +20,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            background: #f0f0f0;
         }
 
         #container {
@@ -33,12 +34,13 @@
         #map {
             height: 100%;
             border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             z-index: 1;
         }
 
         #notes-list {
             overflow-y: auto;
-            padding: 0 10px;
+            padding-right: 10px;
         }
 
         .note-card {
@@ -46,7 +48,7 @@
             padding: 15px;
             margin-bottom: 10px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         #installBtn {
@@ -59,15 +61,33 @@
             border: none;
             border-radius: 25px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             z-index: 1000;
-            transition: opacity 0.3s;
+            transition: transform 0.2s;
+            display: none;
+        }
+
+        #helpBubble {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
+            max-width: 250px;
         }
 
         @media (max-width: 768px) {
             #container {
                 grid-template-columns: 1fr;
                 grid-template-rows: 60vh auto;
+            }
+            #installBtn {
+                bottom: 15px;
+                right: 15px;
+                padding: 10px 20px;
             }
         }
     </style>
@@ -78,24 +98,32 @@
         <div id="notes-list"></div>
     </div>
 
-    <button id="installBtn" style="display: none;">Установить приложение</button>
+    <button id="installBtn">Установить</button>
+    <div id="helpBubble">
+        <button onclick="document.getElementById('helpBubble').style.display = 'none'" 
+                style="float:right; background:none; border:none; font-size:20px;">×</button>
+        <h4>Инструкция:</h4>
+        <div id="instructions"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
         // Инициализация карты
         const map = L.map('map').setView([55.751244, 37.618423], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
         // Логика заметок
         class NotesManager {
             constructor() {
                 this.notes = JSON.parse(localStorage.getItem('geoNotes') || '[]');
                 this.markers = new Map();
-                this.init();
+                this.initEventListeners();
+                this.renderNotes();
             }
 
-            init() {
-                this.renderNotes();
+            initEventListeners() {
                 map.on('click', (e) => this.addNote(e.latlng));
                 map.on('moveend', () => this.filterNotes());
             }
@@ -159,49 +187,80 @@
         // Инициализация менеджера заметок
         const notesManager = new NotesManager();
 
-        // Универсальная логика установки PWA
+        // Логика PWA
         let deferredPrompt;
         const installButton = document.getElementById('installBtn');
+        const helpBubble = document.getElementById('helpBubble');
+        const instructions = document.getElementById('instructions');
 
-        // Проверка поддержки PWA
-        function showInstallButton() {
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            
-            if (!isStandalone && !isIOS) {
-                installButton.style.display = 'block';
+        // Определение браузеров
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMiBrowser = navigator.userAgent.includes('MiuiBrowser');
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+        // Показать инструкции
+        function showInstructions() {
+            let content = '';
+            if (isIOS) {
+                content = `<p>Нажмите <img src="https://cdn-icons-png.flaticon.com/512/2099/2099193.png" 
+                          style="height:20px; vertical-align:middle;"> → "На экран Домой"</p>`;
+            } else if (isMiBrowser) {
+                content = `
+                    <ol>
+                        <li>Нажмите ⋮ в меню</li>
+                        <li>Выберите "Добавить на главный экран"</li>
+                        <li>Подтвердите установку</li>
+                    </ol>`;
+            }
+            instructions.innerHTML = content;
+            helpBubble.style.display = 'block';
+            setTimeout(() => {
+                helpBubble.style.display = 'none';
+            }, 10000);
+        }
+
+        // Обработчик установки
+        function handleInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choiceResult => {
+                    if (choiceResult.outcome === 'accepted') {
+                        installButton.style.display = 'none';
+                    }
+                });
+            } else {
+                showInstructions();
             }
         }
 
-        // События установки
+        // События PWA
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            showInstallButton();
+            if (!isStandalone) installButton.style.display = 'block';
         });
 
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    installButton.style.display = 'none';
-                }
-            } else {
-                // Для браузеров без поддержки beforeinstallprompt
-                alert('Используйте меню браузера:\nChrome: ⋮ → "Установить"\nSafari: Поделиться → "На экран Домой"');
-            }
+        window.addEventListener('appinstalled', () => {
+            installButton.style.display = 'none';
+            helpBubble.style.display = 'none';
         });
+
+        installButton.addEventListener('click', handleInstall);
 
         // Регистрация Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js')
-                .then(reg => console.log('Service Worker зарегистрирован:', reg))
+                .then(reg => {
+                    console.log('Service Worker зарегистрирован');
+                    reg.update();
+                })
                 .catch(err => console.error('Ошибка регистрации:', err));
         }
 
         // Первоначальная проверка
-        showInstallButton();
+        if (!isStandalone && (isIOS || isMiBrowser)) {
+            installButton.style.display = 'block';
+        }
     </script>
 </body>
 </html>
