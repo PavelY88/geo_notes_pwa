@@ -1,7 +1,7 @@
 {
     "name": "Geo Notes",
     "short_name": "GeoNotes",
-    "description": "Заметки с привязкой к карте",
+    "description": "Заметки с геолокацией",
     "start_url": ".",
     "scope": "/geo_notes_pwa/",
     "display": "standalone",
