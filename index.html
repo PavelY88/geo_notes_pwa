@@ -1,95 +1,111 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <!-- ... остальные метатеги и стили ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4A90E2">
+    <title>Geo Notes PWA</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <style>
+        /* Сохраните предыдущие стили без изменений */
+    </style>
 </head>
 <body>
-    <!-- ... остальная разметка ... -->
-    
+    <div id="container">
+        <div id="map"></div>
+        <div id="notes-list"></div>
+    </div>
+
     <button id="installBtn" style="display: none;">
         Установить приложение
     </button>
 
-    <div id="iosInstructions" style="display: none; position: fixed; bottom: 20px; left: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-        Нажмите <img src="share-icon.png" style="height: 20px; vertical-align: middle;"> → "На экран Домой"
-        <button onclick="document.getElementById('iosInstructions').style.display = 'none'">×</button>
-    </div>
-
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Универсальная проверка возможности установки
-        function isPWAInstallable() {
-            return window.matchMedia('(display-mode: standalone)').matches || 
-                   window.navigator.standalone ||
-                   (window.deferredPrompt !== undefined);
-        }
+        // Инициализация карты
+        const map = L.map('map').setView([55.751244, 37.618423], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // Определение iOS/Safari
-        function isIOS() {
-            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        }
-
-        // Определение MIUI браузеров
-        function isMiBrowser() {
-            return navigator.userAgent.toLowerCase().includes('miui');
-        }
-
-        // Показать кнопку установки
-        function showInstallButton() {
-            const installBtn = document.getElementById('installBtn');
-            const iosInstructions = document.getElementById('iosInstructions');
-            
-            if (isPWAInstallable()) {
-                installBtn.style.display = 'none';
-                return;
+        // Логика работы с заметками (без изменений)
+        class NotesManager {
+            constructor() {
+                this.notes = JSON.parse(localStorage.getItem('geoNotes') || '[]');
+                this.markers = new Map();
+                this.initEventListeners();
+                this.renderNotes();
             }
 
-            if (isIOS()) {
-                iosInstructions.style.display = 'block';
-                installBtn.style.display = 'none';
-            } else if (isMiBrowser()) {
-                installBtn.style.display = 'block';
-                installBtn.onclick = () => {
-                    // Специфичная логика для MIUI
-                    alert('Нажмите ⋮ в меню браузера → "Добавить на главный экран"');
-                };
+            // ... сохраните предыдущую реализацию класса NotesManager ...
+        }
+
+        // Инициализация менеджера заметок
+        const notesManager = new NotesManager();
+
+        // Логика PWA с исправлениями
+        let deferredPrompt = null;
+        const installButton = document.getElementById('installBtn');
+
+        // Универсальный обработчик установки
+        function handleInstall() {
+            if(deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choiceResult => {
+                    if(choiceResult.outcome === 'accepted') {
+                        console.log('User accepted install');
+                    }
+                    deferredPrompt = null;
+                });
+            } else if(/iP(hone|ad|od)/.test(navigator.userAgent)) {
+                // Для iOS
+                alert('Нажмите кнопку "Поделиться" и выберите "На экран Домой"');
             } else {
-                installBtn.style.display = 'block';
+                // Для других браузеров
+                alert('Используйте меню браузера для установки');
             }
         }
 
-        // Общая логика установки
-        let deferredPrompt;
-
+        // Событие beforeinstallprompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            showInstallButton();
+            installButton.style.display = 'block';
+            
+            // Автоматическое скрытие через 30 секунд
+            setTimeout(() => {
+                installButton.style.display = 'none';
+            }, 30000);
         });
 
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('Приложение установлено');
-                }
-            }
+        // Обработчик клика на кнопке
+        installButton.addEventListener('click', handleInstall);
+
+        // Проверка установленного состояния
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA установлено');
+            installButton.style.display = 'none';
         });
 
-        // Проверка при загрузке
-        window.addEventListener('load', () => {
-            if (!isPWAInstallable()) {
-                showInstallButton();
-            }
-        });
+        // Регистрация Service Worker с исправлениями
+        if('serviceWorker' in navigator) {
+            navigator.serviceWorker
+                .register('service-worker.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful');
+                    registration.update();
+                })
+                .catch(err => {
+                    console.error('ServiceWorker registration failed:', err);
+                });
+        }
 
-        // Проверка в фоновом режиме
+        // Проверка статуса каждые 2 секунды
         setInterval(() => {
-            if (isPWAInstallable()) {
-                document.getElementById('installBtn').style.display = 'none';
-                document.getElementById('iosInstructions').style.display = 'none';
+            if(window.matchMedia('(display-mode: standalone)').matches) {
+                installButton.style.display = 'none';
             }
-        }, 1000);
+        }, 2000);
     </script>
 </body>
 </html>
