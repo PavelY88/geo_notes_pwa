@@ -1,7 +1,9 @@
 {
     "name": "Geo Notes",
     "short_name": "GeoNotes",
+    "description": "Заметки с привязкой к карте",
     "start_url": ".",
+    "scope": "/geo_notes_pwa/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#4a90e2",
