@@ -1,191 +1,95 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4a90e2">
-    <title>Geo Notes PWA</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            flex-grow: 1;
-            gap: 10px;
-            padding: 10px;
-        }
-
-        #map {
-            height: 100%;
-            border-radius: 8px;
-            z-index: 1;
-        }
-
-        #notes-list {
-            overflow-y: auto;
-            padding: 0 10px;
-        }
-
-        .note-card {
-            background: white;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        #installBtn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: none;
-            z-index: 1000;
-        }
-
-        @media (max-width: 768px) {
-            #container {
-                grid-template-columns: 1fr;
-                grid-template-rows: 60vh auto;
-            }
-        }
-    </style>
+    <!-- ... остальные метатеги и стили ... -->
 </head>
 <body>
-    <div id="container">
-        <div id="map"></div>
-        <div id="notes-list"></div>
+    <!-- ... остальная разметка ... -->
+    
+    <button id="installBtn" style="display: none;">
+        Установить приложение
+    </button>
+
+    <div id="iosInstructions" style="display: none; position: fixed; bottom: 20px; left: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        Нажмите <img src="share-icon.png" style="height: 20px; vertical-align: middle;"> → "На экран Домой"
+        <button onclick="document.getElementById('iosInstructions').style.display = 'none'">×</button>
     </div>
 
-    <button id="installBtn">Установить приложение</button>
-
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Инициализация карты
-        const map = L.map('map').setView([55.751244, 37.618423], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // Универсальная проверка возможности установки
+        function isPWAInstallable() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone ||
+                   (window.deferredPrompt !== undefined);
+        }
 
-        class NotesManager {
-            constructor() {
-                this.notes = JSON.parse(localStorage.getItem('geoNotes') || '[]');
-                this.markers = new Map();
-                this.initEventListeners();
-                this.renderNotes();
+        // Определение iOS/Safari
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        }
+
+        // Определение MIUI браузеров
+        function isMiBrowser() {
+            return navigator.userAgent.toLowerCase().includes('miui');
+        }
+
+        // Показать кнопку установки
+        function showInstallButton() {
+            const installBtn = document.getElementById('installBtn');
+            const iosInstructions = document.getElementById('iosInstructions');
+            
+            if (isPWAInstallable()) {
+                installBtn.style.display = 'none';
+                return;
             }
 
-            initEventListeners() {
-                map.on('click', (e) => this.addNote(e.latlng));
-                map.on('moveend', () => this.filterNotes());
-            }
-
-            addNote(latlng) {
-                const text = prompt('Введите текст заметки:');
-                if (text) {
-                    const note = {
-                        id: Date.now(),
-                        text,
-                        lat: latlng.lat,
-                        lng: latlng.lng,
-                        date: new Date().toISOString()
-                    };
-                    this.notes.push(note);
-                    this.save();
-                    this.createMarker(note);
-                    this.renderNotes();
-                }
-            }
-
-            createMarker(note) {
-                const marker = L.marker([note.lat, note.lng])
-                    .bindPopup(note.text)
-                    .addTo(map);
-                this.markers.set(note.id, marker);
-            }
-
-            filterNotes() {
-                const bounds = map.getBounds();
-                const visibleNotes = this.notes.filter(note => 
-                    bounds.contains([note.lat, note.lng])
-                );
-                this.renderNotes(visibleNotes);
-            }
-
-            renderNotes(notes = this.notes) {
-                const list = document.getElementById('notes-list');
-                list.innerHTML = notes.map(note => `
-                    <div class="note-card">
-                        <p>${note.text}</p>
-                        <small>${new Date(note.date).toLocaleString()}</small>
-                        <button onclick="notesManager.deleteNote(${note.id})">Удалить</button>
-                    </div>
-                `).join('');
-            }
-
-            deleteNote(id) {
-                this.notes = this.notes.filter(note => note.id !== id);
-                this.markers.get(id)?.remove();
-                this.markers.delete(id);
-                this.save();
-                this.renderNotes();
-            }
-
-            save() {
-                localStorage.setItem('geoNotes', JSON.stringify(this.notes));
+            if (isIOS()) {
+                iosInstructions.style.display = 'block';
+                installBtn.style.display = 'none';
+            } else if (isMiBrowser()) {
+                installBtn.style.display = 'block';
+                installBtn.onclick = () => {
+                    // Специфичная логика для MIUI
+                    alert('Нажмите ⋮ в меню браузера → "Добавить на главный экран"');
+                };
+            } else {
+                installBtn.style.display = 'block';
             }
         }
 
-        // Инициализация приложения
-        const notesManager = new NotesManager();
-
-        // Логика PWA
+        // Общая логика установки
         let deferredPrompt;
-        const installButton = document.getElementById('installBtn');
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            installButton.style.display = 'block';
+            showInstallButton();
         });
 
-        installButton.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                installButton.style.display = 'none';
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('Приложение установлено');
+                }
             }
-            deferredPrompt = null;
         });
 
-        // Регистрация Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then(reg => console.log('Service Worker зарегистрирован:', reg))
-                .catch(err => console.error('Ошибка регистрации Service Worker:', err));
-        }
+        // Проверка при загрузке
+        window.addEventListener('load', () => {
+            if (!isPWAInstallable()) {
+                showInstallButton();
+            }
+        });
+
+        // Проверка в фоновом режиме
+        setInterval(() => {
+            if (isPWAInstallable()) {
+                document.getElementById('installBtn').style.display = 'none';
+                document.getElementById('iosInstructions').style.display = 'none';
+            }
+        }, 1000);
     </script>
 </body>
 </html>
