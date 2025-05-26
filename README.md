@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/28df5f71-15ce-4f65-8260-4200c5b44569)
+
 Инструкция по использованию:
 
 1. Откройте приложение в поддерживаемом браузере (Chrome, Firefox)
